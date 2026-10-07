@@ -1,57 +1,76 @@
-MO-IT106L-DAF_montejok
-# MotorPH Dataset Preprocessing
+# MotorPH Milestone 2
 
-This repository contains my Milestone 1 dataset preprocessing activity for MotorPH.
+## Files I use
 
-The project uses Python and pandas to examine, clean, standardize, and prepare the MotorPH Product List and Sales datasets for analysis.
+Place these files in one folder:
 
-## Files Included
+- `MotorPH_MS2_Final_Dashboard.py`
+- My cleaned MotorPH Products CSV from Milestone 1
+- The MotorPH Sales CSV
 
-- `MotorPH_Dataset_Preprocessing.py` - Python script used to load, examine, clean, and export the datasets
-- `MotorPH_Products_List_2025.csv` - original MotorPH product list
-- `MotorPH_Sales Data-3rd Quarter-Year 2025.csv` - original MotorPH sales dataset
-- `MotorPH_Products_Preprocessed.csv` - cleaned and structured product dataset
-- `MotorPH_Sales_Preprocessed.csv` - cleaned sales dataset
+The script recognizes the filenames already used in my GitHub repository.
 
-## Preprocessing Performed
-
-The datasets were checked and cleaned by:
-
-- Identifying missing values
-- Checking and removing duplicate records
-- Correcting data types
-- Cleaning and standardizing text values
-- Correcting inconsistent product names
-- Standardizing date formats
-- Renaming columns for clarity
-- Creating sequential Product ID Numbers
-- Matching sales product prices with the official product list
-- Recalculating sales totals
-- Removing unnecessary or invalid records
-- Arranging the Product List according to the required report format
-
-## Product List Format
-
-The cleaned product dataset contains the following fields:
-
-1. Product ID Number
-2. Product Name
-3. Product Type
-4. Unit Price
-5. Date of Manufacturing
-6. Date of Acquisition
-
-## Tools Used
-
-- Python
-- pandas
-- GitHub
-
-## How to Run
-
-Make sure the original CSV files and the Python file are stored in the same folder.
-
-Run:
+## How I run it
 
 ```bash
-python MotorPH_Dataset_Preprocessing.py
+python MotorPH_MS2_Final_Dashboard.py
+```
+
+## Outputs created automatically
+
+1. `MotorPH_Analytical_Dashboard.png`  
+   Main dashboard containing the overview KPIs and sales/category visualizations.
+
+2. `MotorPH_Inventory_Section.png`  
+   Full inventory list containing Product ID, Product Name, Product Category, and Unit Price.
+
+3. `MotorPH_Analytical_Dashboard.pdf`  
+   Two-page submission version combining the dashboard and inventory section.
+
+4. `MotorPH_Sales_MS2_Cleaned.csv`  
+   Final sales data actually used for the dashboard calculations.
+
+5. `MotorPH_MS2_Analysis.md`  
+   First-person written explanation generated using the exact results from my data.
+
+## Dashboard sections
+
+### MotorPH Overview
+- Total Revenue
+- Total Units Sold
+- Number of Products
+- Number of Categories
+- Listed Inventory Value
+- Value of Products Acquired Before 2023
+
+### Sales Performance
+- Daily Revenue Trend
+- Units Sold by Month
+- Top 10 Products by Revenue
+
+### Sales by Product Category
+- Revenue by Product Category
+- Product Distribution by Category
+- Inventory Product Share vs Sales Unit Share
+
+### Inventory Section
+- Complete structured product list
+- Product category
+- Unit price
+
+## Data cleaning included
+
+Before I calculate the dashboard metrics, I:
+
+- check required columns;
+- standardize column names;
+- handle missing Client Type and Payment Method values;
+- convert dates and numeric columns;
+- correct known misspelled product names;
+- remove unusable records;
+- remove exact duplicate rows;
+- compare sales products with the cleaned Products dataset;
+- replace inconsistent transaction unit prices with the official product price; and
+- recalculate Revenue as `Unit Price × Quantity`.
+
+This is important because the dashboard should be based on validated data rather than simply plotting the raw Sales file.
