@@ -1,76 +1,53 @@
-# MotorPH Milestone 2 
+# MotorPH Milestone 2 - How to Run
 
-## Files I use
+## Required files
 
-Place these files in one folder:
+Place the following files in the same folder:
 
-- `MotorPH_MS2_Final_Dashboard.py`
-- My cleaned MotorPH Products CSV from Milestone 1
-- The MotorPH Sales CSV
+1. `MotorPH_MS2_Final_Dashboard_REVISED.py`
+2. The cleaned MotorPH Products CSV from Milestone 1.
+3. The MotorPH Sales CSV.
 
-The script recognizes the filenames already used in my GitHub repository.
+The script recognizes these common filenames for the Products file:
+- `MotorPH_Products_Preprocessed  - Sheet1.csv`
+- `MotorPH_Products_Preprocessed - Sheet1.csv`
+- `MotorPH_Products_Preprocessed.csv`
 
-## How I run it
+The script recognizes these common filenames for the Sales file:
+- `MotorPH_Sales Data-3rd Quarter-Year 2025.csv`
+- `MotorPH_Sales_Preprocessed - Sheet1.csv`
+- `MotorPH_Sales_Preprocessed.csv`
+
+## Python requirements
+
+Install:
 
 ```bash
-python MotorPH_MS2_Final_Dashboard.py
+pip install pandas matplotlib
 ```
 
-## Outputs created automatically
+## Run
 
-1. `MotorPH_Analytical_Dashboard.png`  
-   Main dashboard containing the overview KPIs and sales/category visualizations.
+Open a terminal in the project folder and run:
 
-2. `MotorPH_Inventory_Section.png`  
-   Full inventory list containing Product ID, Product Name, Product Category, and Unit Price.
+```bash
+python MotorPH_MS2_Final_Dashboard_REVISED.py
+```
 
-3. `MotorPH_Analytical_Dashboard.pdf`  
-   Two-page submission version combining the dashboard and inventory section.
+## Files created
 
-4. `MotorPH_Sales_MS2_Cleaned.csv`  
-   Final sales data actually used for the dashboard calculations.
+- `MotorPH_Analytical_Dashboard.png`
+- `MotorPH_Inventory_Section.png`
+- `MotorPH_Analytical_Dashboard.pdf`
+- `MotorPH_Sales_MS2_Cleaned.csv`
+- `MotorPH_MS2_Analysis.md`
+- `MotorPH_MS2_README.md`
 
-5. `MotorPH_MS2_Analysis.md`  
-   First-person written explanation generated using the exact results from my data.
+## Main analytical test
 
-## Dashboard sections
+The revised dashboard compares each category's product-lineup share with its share of total units sold.
 
-### MotorPH Overview
-- Total Revenue
-- Total Units Sold
-- Number of Products
-- Number of Categories
-- Listed Inventory Value
-- Value of Products Acquired Before 2023
+- Positive gap = overrepresented in the product lineup relative to demand.
+- Negative gap = sales demand exceeds product-lineup representation.
 
-### Sales Performance
-- Daily Revenue Trend
-- Units Sold by Month
-- Top 10 Products by Revenue
-
-### Sales by Product Category
-- Revenue by Product Category
-- Product Distribution by Category
-- Inventory Product Share vs Sales Unit Share
-
-### Inventory Section
-- Complete structured product list
-- Product category
-- Unit price
-
-## Data cleaning included
-
-Before I calculate the dashboard metrics, I:
-
-- check required columns;
-- standardize column names;
-- handle missing Client Type and Payment Method values;
-- convert dates and numeric columns;
-- correct known misspelled product names;
-- remove unusable records;
-- remove exact duplicate rows;
-- compare sales products with the cleaned Products dataset;
-- replace inconsistent transaction unit prices with the official product price; and
-- recalculate Revenue as `Unit Price × Quantity`.
-
-This is important because the dashboard should be based on validated data rather than simply plotting the raw Sales file.
+This comparison is an assortment/inventory-risk proxy because the Products dataset does not include actual on-hand stock quantity by category.
