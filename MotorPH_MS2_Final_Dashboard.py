@@ -44,6 +44,7 @@ INVENTORY_PNG = BASE_DIR / "MotorPH_Inventory_Section.png"
 DASHBOARD_PDF = BASE_DIR / "MotorPH_Analytical_Dashboard.pdf"
 ANALYSIS_FILE = BASE_DIR / "MotorPH_MS2_Analysis.md"
 CLEAN_SALES_FILE = BASE_DIR / "MotorPH_Sales_MS2_Cleaned.csv"
+README_FILE = BASE_DIR / "MotorPH_MS2_README.md"
 
 
 def find_file(candidates, description):
@@ -451,40 +452,47 @@ def create_dashboard(products, sales, metrics):
         .sort_values()
     )
 
-    product_distribution = (
-        products["Product Type"]
-        .value_counts()
-        .sort_values()
-    )
-
     category_units = sales.groupby("Product Type")["Quantity"].sum()
 
-    inventory_share = (
-        product_distribution / product_distribution.sum() * 100
-    )
-
-    sales_share = (
-        category_units / category_units.sum() * 100
-    )
+    # Product-lineup share is used as a proxy for inventory representation
+    # because the Products dataset contains product records/models rather than
+    # an explicit on-hand stock quantity.
+    product_distribution = products["Product Type"].value_counts()
+    inventory_share = product_distribution / product_distribution.sum() * 100
+    sales_share = category_units / category_units.sum() * 100
 
     mix = pd.concat(
         [
-            inventory_share.rename("Inventory Product Share"),
+            inventory_share.rename("Product Lineup Share"),
             sales_share.rename("Sales Unit Share"),
         ],
         axis=1,
     ).fillna(0)
 
-    # Sort the mix by sales share for easier comparison.
-    mix = mix.sort_values("Sales Unit Share")
+    # Positive gap = category is more represented in the product lineup
+    # than in actual unit sales.
+    mix["Gap (pp)"] = (
+        mix["Product Lineup Share"] - mix["Sales Unit Share"]
+    )
 
-    fig = plt.figure(figsize=(18, 24))
+    # Categories with the largest positive gap are the most overrepresented.
+    top_overrepresented = mix.sort_values(
+        "Gap (pp)", ascending=False
+    ).head(3)
+
+    # Largest negative gaps identify categories where demand share is greater
+    # than the product-lineup share.
+    top_underrepresented = mix.sort_values(
+        "Gap (pp)", ascending=True
+    ).head(3)
+
+    fig = plt.figure(figsize=(18, 26))
     grid = fig.add_gridspec(
         nrows=5,
         ncols=6,
-        height_ratios=[0.55, 1.7, 2.2, 2.2, 2.4],
-        hspace=0.55,
-        wspace=0.75,
+        height_ratios=[0.55, 1.7, 2.2, 2.5, 2.8],
+        hspace=0.58,
+        wspace=0.78,
     )
 
     fig.suptitle(
@@ -495,7 +503,7 @@ def create_dashboard(products, sales, metrics):
     )
     fig.text(
         0.5,
-        0.965,
+        0.966,
         "Products and Sales Performance | June-August 2025",
         ha="center",
         fontsize=12,
@@ -517,7 +525,7 @@ def create_dashboard(products, sales, metrics):
         ("Total Units Sold", f'{metrics["total_units"]:,}'),
         ("Products", f'{metrics["number_products"]:,}'),
         ("Categories", f'{metrics["number_categories"]:,}'),
-        ("Listed Inventory Value", peso(metrics["listed_inventory_value"])),
+        ("Listed Product Value", peso(metrics["listed_inventory_value"])),
         ("Pre-2023 Product Value", peso(metrics["pre_2023_value"])),
     ]
 
@@ -530,7 +538,7 @@ def create_dashboard(products, sales, metrics):
     # -----------------------
     ax1 = fig.add_subplot(grid[1, 0:3])
     ax1.plot(daily_revenue.index, daily_revenue.values, marker="o", markersize=2)
-    ax1.set_title("Sales Performance: Daily Revenue Trend")
+    ax1.set_title("Daily Revenue Trend")
     ax1.set_xlabel("Date")
     ax1.set_ylabel("Revenue (PHP)")
     ax1.tick_params(axis="x", rotation=35)
@@ -538,12 +546,19 @@ def create_dashboard(products, sales, metrics):
 
     ax2 = fig.add_subplot(grid[1, 3:6])
     ax2.bar(monthly_units.index, monthly_units.values)
-    ax2.set_title("Sales Performance: Units Sold by Month")
+    ax2.set_title("Units Sold by Month")
     ax2.set_xlabel("Month")
     ax2.set_ylabel("Units Sold")
     ax2.grid(axis="y", alpha=0.25)
     for x, value in enumerate(monthly_units.values):
-        ax2.text(x, value, f"{int(value):,}", ha="center", va="bottom", fontsize=9)
+        ax2.text(
+            x,
+            value,
+            f"{int(value):,}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+        )
 
     ax3 = fig.add_subplot(grid[2, 0:3])
     ax3.barh(product_revenue.index, product_revenue.values)
@@ -560,107 +575,150 @@ def create_dashboard(products, sales, metrics):
     ax4.grid(axis="x", alpha=0.25)
 
     # -----------------------
-    # SALES BY PRODUCT CATEGORY
+    # INVENTORY VS DEMAND
     # -----------------------
-    ax5 = fig.add_subplot(grid[3, 0:3])
-    bars = ax5.barh(product_distribution.index, product_distribution.values)
-    ax5.set_title("Product Distribution by Category")
-    ax5.set_xlabel("Number of Products")
-    ax5.set_ylabel("Product Category")
-    ax5.grid(axis="x", alpha=0.25)
-
-    total_products = product_distribution.sum()
-    for bar, count in zip(bars, product_distribution.values):
-        percentage = count / total_products * 100
-        ax5.text(
-            bar.get_width() + 0.08,
-            bar.get_y() + bar.get_height() / 2,
-            f"{count} ({percentage:.0f}%)",
-            va="center",
-            fontsize=8,
-        )
-
-    ax6 = fig.add_subplot(grid[3, 3:6])
-    y = range(len(mix))
+    # Rebuilt category chart requested in the instructor feedback.
+    mix_plot = mix.sort_values("Sales Unit Share")
+    y = list(range(len(mix_plot)))
     width = 0.38
 
-    ax6.barh(
+    ax5 = fig.add_subplot(grid[3, 0:3])
+    ax5.barh(
         [position - width / 2 for position in y],
-        mix["Inventory Product Share"],
+        mix_plot["Product Lineup Share"],
         height=width,
-        label="Inventory product share",
+        label="Product lineup share",
     )
-    ax6.barh(
+    ax5.barh(
         [position + width / 2 for position in y],
-        mix["Sales Unit Share"],
+        mix_plot["Sales Unit Share"],
         height=width,
         label="Sales unit share",
     )
-    ax6.set_yticks(list(y))
-    ax6.set_yticklabels(mix.index)
-    ax6.set_title("Inventory Mix vs Sales Unit Mix")
-    ax6.set_xlabel("Share (%)")
+    ax5.set_yticks(y)
+    ax5.set_yticklabels(mix_plot.index)
+    ax5.set_title("Product Lineup Share vs Sales Unit Share")
+    ax5.set_xlabel("Share (%)")
+    ax5.set_ylabel("Product Category")
+    ax5.legend(fontsize=8, loc="lower right")
+    ax5.grid(axis="x", alpha=0.25)
+
+    # Leave space to the right for the instructor-requested gap annotations.
+    share_max = max(
+        mix_plot["Product Lineup Share"].max(),
+        mix_plot["Sales Unit Share"].max(),
+    )
+    ax5.set_xlim(0, share_max + 9)
+
+    # Annotate the three categories with the largest positive gaps.
+    for category, row in top_overrepresented.iterrows():
+        plot_index = list(mix_plot.index).index(category)
+        annotation_x = max(
+            row["Product Lineup Share"],
+            row["Sales Unit Share"],
+        ) + 0.6
+        ax5.text(
+            annotation_x,
+            plot_index,
+            f"{category}: +{row['Gap (pp)']:.2f} pp",
+            va="center",
+            fontsize=8,
+            fontweight="bold",
+        )
+
+    # Diverging gap chart: positive = overrepresented, negative = underrepresented.
+    gap_plot = mix.sort_values("Gap (pp)")
+    ax6 = fig.add_subplot(grid[3, 3:6])
+    ax6.barh(gap_plot.index, gap_plot["Gap (pp)"])
+    ax6.axvline(0, linewidth=1)
+    ax6.set_title("Product Lineup Share Gap vs Sales Demand")
+    ax6.set_xlabel(
+        "Gap in percentage points "
+        "(positive = overrepresented; negative = underrepresented)"
+    )
     ax6.set_ylabel("Product Category")
-    ax6.legend(fontsize=8)
     ax6.grid(axis="x", alpha=0.25)
 
     # -----------------------
-    # DASHBOARD INSIGHT BOX
+    # EXPLANATIONS & INSIGHTS
     # -----------------------
     ax7 = fig.add_subplot(grid[4, :])
     ax7.axis("off")
 
-    top_product = (
-        sales.groupby("Product Name")["Revenue"]
-        .sum()
-        .idxmax()
-    )
+    top_product = sales.groupby("Product Name")["Revenue"].sum().idxmax()
     top_category_revenue = (
-        sales.groupby("Product Type")["Revenue"]
-        .sum()
-        .idxmax()
+        sales.groupby("Product Type")["Revenue"].sum().idxmax()
     )
     top_category_units = (
-        sales.groupby("Product Type")["Quantity"]
-        .sum()
-        .idxmax()
+        sales.groupby("Product Type")["Quantity"].sum().idxmax()
     )
 
-    scooter_inventory_share = (
-        inventory_share.get("Scooter", 0)
+    chart_explanations = (
+        "Chart guide\n"
+        "• Daily Revenue Trend — line chart: shows how revenue changes through time.\n"
+        "• Units Sold by Month — bar chart: compares monthly sales volume directly.\n"
+        "• Top 10 Products by Revenue — horizontal bar chart: ranks products while keeping long names readable.\n"
+        "• Revenue by Product Category — horizontal bar chart: compares category contribution to revenue.\n"
+        "• Product Lineup Share vs Sales Unit Share — grouped horizontal bars: tests whether category representation matches demand.\n"
+        "• Product Lineup Share Gap — diverging bars: positive values indicate overrepresentation; negative values indicate stronger demand than lineup share.\n"
     )
-    scooter_sales_share = (
-        sales_share.get("Scooter", 0)
-    )
+
+    over_lines = []
+    for category, row in top_overrepresented.iterrows():
+        over_lines.append(
+            f"{category}: {row['Product Lineup Share']:.1f}% lineup vs "
+            f"{row['Sales Unit Share']:.1f}% sales "
+            f"(+{row['Gap (pp)']:.2f} pp)"
+        )
+
+    under_lines = []
+    for category, row in top_underrepresented.iterrows():
+        under_lines.append(
+            f"{category}: {row['Product Lineup Share']:.1f}% lineup vs "
+            f"{row['Sales Unit Share']:.1f}% sales "
+            f"({row['Gap (pp)']:.2f} pp)"
+        )
 
     insight_text = (
-        "Dashboard Summary\n\n"
-        f"• I analyzed {metrics['transactions']:,} valid sales records after data cleaning.\n"
-        f"• The dataset generated {metrics['total_units']:,} units sold and "
-        f"{peso(metrics['total_revenue'])} in calculated revenue.\n"
-        f"• The highest-revenue product is {top_product}.\n"
-        f"• The highest-revenue category is {top_category_revenue}, while "
-        f"{top_category_units} records the highest sales volume by units.\n"
-        f"• Scooters represent {scooter_inventory_share:.1f}% of the product lineup "
-        f"and {scooter_sales_share:.1f}% of units sold. This comparison helps me check "
-        "whether the largest inventory category is supported by customer demand.\n"
-        f"• Products acquired before 2023 represent {peso(metrics['pre_2023_value'])} "
-        "of the listed product value, which is useful for monitoring older inventory."
+        chart_explanations
+        + "\nKey insights\n"
+        + f"• I analyzed {metrics['transactions']:,} valid sales records after data cleaning.\n"
+        + f"• The dataset generated {metrics['total_units']:,} units sold and "
+        + f"{peso(metrics['total_revenue'])} in calculated revenue.\n"
+        + f"• The highest-revenue product is {top_product}; "
+        + f"{top_category_revenue} leads category revenue, while "
+        + f"{top_category_units} leads sales volume.\n"
+        + "• Largest overrepresentation gaps: "
+        + "; ".join(over_lines)
+        + ".\n"
+        + "• Largest underrepresentation gaps: "
+        + "; ".join(under_lines)
+        + ".\n"
+        + "• Recommendation: slow replenishment or reduce assortment growth first in the most overrepresented categories, "
+        + "especially Naked Bike and Underbone. Keep Scooters under observation rather than cutting aggressively because its "
+        + "lineup share and sales share are already close. Reallocate purchasing attention toward categories where sales share "
+        + "exceeds lineup share, such as Commuter and Adventure, while also checking margin and stock aging before changing order quantities.\n"
+        + "• Limitation: product-lineup share is a proxy for inventory representation because the Products dataset does not contain "
+        + "actual on-hand stock quantity by category."
     )
 
     ax7.text(
-        0.02,
-        0.95,
+        0.015,
+        0.98,
         insight_text,
         va="top",
-        fontsize=12,
-        linespacing=1.6,
+        fontsize=10.5,
+        linespacing=1.45,
+        wrap=True,
     )
 
     fig.text(
         0.5,
         0.01,
-        "Source: MotorPH Products and Sales datasets | Analysis prepared in Python using pandas and matplotlib",
+        (
+            "Source: MotorPH Products and Sales datasets | "
+            "Analysis prepared in Python using pandas and matplotlib"
+        ),
         ha="center",
         fontsize=9,
     )
@@ -743,10 +801,6 @@ def write_analysis(products, sales, metrics, quality):
         .sort_values(ascending=False)
     )
 
-    top_inventory_category = category_count.index[0]
-    top_inventory_count = int(category_count.iloc[0])
-    top_inventory_share = top_inventory_count / len(products) * 100
-
     product_revenue = (
         sales.groupby("Product Name")["Revenue"]
         .sum()
@@ -771,6 +825,35 @@ def write_analysis(products, sales, metrics, quality):
         .sort_values(ascending=False)
     )
 
+    inventory_share = (
+        category_count / category_count.sum() * 100
+    )
+
+    sales_share = (
+        category_units / category_units.sum() * 100
+    )
+
+    gap_table = pd.concat(
+        [
+            inventory_share.rename("Product Lineup Share"),
+            sales_share.rename("Sales Unit Share"),
+        ],
+        axis=1,
+    ).fillna(0)
+
+    gap_table["Gap (pp)"] = (
+        gap_table["Product Lineup Share"]
+        - gap_table["Sales Unit Share"]
+    )
+
+    top_overrepresented = gap_table.sort_values(
+        "Gap (pp)", ascending=False
+    ).head(3)
+
+    top_underrepresented = gap_table.sort_values(
+        "Gap (pp)", ascending=True
+    ).head(3)
+
     top_product = product_revenue.index[0]
     top_product_revenue = product_revenue.iloc[0]
     top_revenue_category = category_revenue.index[0]
@@ -780,19 +863,25 @@ def write_analysis(products, sales, metrics, quality):
     best_month = monthly_revenue.index[0]
     best_month_revenue = monthly_revenue.iloc[0]
 
-    inventory_share = (
-        products["Product Type"].value_counts()
-        / len(products)
-        * 100
-    )
-    sales_share = (
-        sales.groupby("Product Type")["Quantity"].sum()
-        / sales["Quantity"].sum()
-        * 100
+    over_lines = "\n".join(
+        (
+            f"- **{category}:** "
+            f"{row['Product Lineup Share']:.1f}% product-lineup share vs "
+            f"{row['Sales Unit Share']:.1f}% sales-unit share "
+            f"= **+{row['Gap (pp)']:.2f} percentage points**"
+        )
+        for category, row in top_overrepresented.iterrows()
     )
 
-    scooter_inventory_share = inventory_share.get("Scooter", 0)
-    scooter_sales_share = sales_share.get("Scooter", 0)
+    under_lines = "\n".join(
+        (
+            f"- **{category}:** "
+            f"{row['Product Lineup Share']:.1f}% product-lineup share vs "
+            f"{row['Sales Unit Share']:.1f}% sales-unit share "
+            f"= **{row['Gap (pp)']:.2f} percentage points**"
+        )
+        for category, row in top_underrepresented.iterrows()
+    )
 
     report = f"""# MotorPH Milestone 2 – Analytical Dashboard
 
@@ -835,40 +924,116 @@ After preprocessing, my dashboard produced the following key metrics:
 - **Listed Product Value:** {peso(metrics['listed_inventory_value'])}
 - **Value of Products Acquired Before 2023:** {peso(metrics['pre_2023_value'])}
 
-These metrics provide a high-level view of both the product portfolio and sales activity.
+## 4. Why I Used Each Chart Type
 
-## 4. Sales Performance
+- **Daily Revenue Trend – Line chart:** I used a line chart because the x-axis is time. It makes changes in daily revenue across the reporting period easier to see.
+- **Units Sold by Month – Bar chart:** I used vertical bars because there are only three monthly totals and I wanted a direct comparison of sales volume.
+- **Top 10 Products by Revenue – Horizontal bar chart:** I used horizontal bars because product names are long and the ranking is easier to read.
+- **Revenue by Product Category – Horizontal bar chart:** This shows which categories contribute the most revenue and allows categories to be compared on the same scale.
+- **Product Lineup Share vs Sales Unit Share – Grouped horizontal bar chart:** This directly compares category representation in the product lineup with actual demand based on unit sales.
+- **Product Lineup Share Gap – Diverging horizontal bar chart:** This converts the comparison into one number. A positive gap indicates overrepresentation, while a negative gap indicates that sales demand is greater than lineup representation.
 
-I used a line chart to visualize the daily revenue trend because the sales records contain transaction dates. This allows me to see how revenue changes across the reporting period rather than relying only on one overall total.
+## 5. Key Sales Insights
 
-I also summarized units sold by month. The month with the highest revenue was **{best_month}**, with approximately **{peso(best_month_revenue)}** in revenue.
+The month with the highest revenue was **{best_month}**, with approximately **{peso(best_month_revenue)}** in revenue.
 
-For product performance, the highest-revenue product was **{top_product}**, which generated approximately **{peso(top_product_revenue)}**.
+The highest-revenue product was **{top_product}**, which generated approximately **{peso(top_product_revenue)}**.
 
-## 5. Sales by Product Category
+The category with the highest revenue was **{top_revenue_category}**, with approximately **{peso(top_revenue_category_value)}**. The category with the highest unit sales was **{top_units_category}**, with **{top_units_category_value:,} units sold**.
 
-My original Milestone 2 Draft chart showed the number of products in each category. The largest product category is **{top_inventory_category}**, with **{top_inventory_count} products**, representing approximately **{top_inventory_share:.1f}%** of the complete product lineup.
+## 6. Inventory Representation vs Actual Demand
 
-I expanded this analysis by comparing category revenue and sales volume. The category with the highest revenue was **{top_revenue_category}**, with approximately **{peso(top_revenue_category_value)}** in revenue. The category with the highest unit sales was **{top_units_category}**, with **{top_units_category_value:,} units sold**.
+I calculated product-lineup share as the number of product records in a category divided by the total number of products. I then compared it with the category's share of total units sold.
 
-To respond to the business-risk issue identified in my Milestone 1 feedback, I also compared inventory mix with actual sales mix. Scooters represent approximately **{scooter_inventory_share:.1f}%** of MotorPH's product lineup and **{scooter_sales_share:.1f}%** of the units sold in the cleaned Sales dataset. This comparison helps determine whether the strong inventory emphasis on Scooters is supported by actual customer demand.
+The three most overrepresented categories are:
 
-## 6. Inventory Section
+{over_lines}
 
-The second page of my dashboard contains the full structured MotorPH product list. It displays the Product ID, Product Name, Product Category, and Unit Price for every product in the cleaned Products dataset.
+The three categories with the strongest sales share relative to their product-lineup share are:
 
-I also carried forward the inventory-aging idea from my Milestone 1 feedback. The total listed value of products acquired before 2023 is **{peso(metrics['pre_2023_value'])}**. This is useful because older products can represent capital that has been tied up for a longer period and may require additional attention in future inventory decisions.
+{under_lines}
 
-## 7. Conclusion
+For example, Scooters account for about **{inventory_share.get('Scooter', 0):.1f}%** of the product lineup and about **{sales_share.get('Scooter', 0):.1f}%** of units sold. The gap is only **{gap_table.loc['Scooter', 'Gap (pp)']:+.2f} percentage points**, so Scooter representation is relatively close to actual demand. This means Scooters do not show the strongest mismatch even though they are the largest category.
 
-The dashboard combines product and sales information into one analytical view. It shows that inventory size alone does not completely describe business performance, so I compared the product mix with actual units sold and revenue. This allows me to identify whether heavily represented categories are also supported by customer demand.
+The larger inventory-risk signal appears in categories such as **Naked Bike** and **Underbone**, where product-lineup share is noticeably higher than sales-unit share.
 
-The data-cleaning stage was also important because several sales records contained missing values, inconsistent product names, irregular dates, or unit prices that did not agree with the official product list. By validating the Sales data against the cleaned Products dataset and recalculating revenue, I reduced the risk of producing misleading charts or KPI values.
+## 7. Recommendation to MotorPH
 
-Overall, the final dashboard provides a clearer basis for evaluating MotorPH's product lineup, sales performance, category demand, and possible inventory risk.
+Based on the gap analysis, I would recommend that MotorPH **avoid increasing assortment or replenishment too aggressively in the categories with the largest positive gaps**, particularly Naked Bike and Underbone. These categories occupy a larger share of the product lineup than their share of actual unit sales.
+
+For Scooters, I would recommend **maintaining the category but monitoring sell-through**, because its 24% lineup share is already close to its approximately 23.1% unit-sales share. A large reduction in Scooter offerings is not supported by this dataset.
+
+MotorPH can consider shifting some purchasing attention, display space, or future product additions toward categories where sales share is greater than product-lineup share, such as the most underrepresented categories identified above. Before changing actual order quantities, I would also review gross margin, stock aging, and true on-hand stock levels.
+
+## 8. Limitation
+
+The Products dataset contains product records/models and unit prices, but it does not provide actual **on-hand stock quantity by category**. Therefore, the product-lineup share used in this dashboard is a **proxy for inventory representation**, not a complete stock-on-hand measure. The gap analysis is still useful for identifying possible assortment imbalance, but final inventory purchasing decisions should also use real stock quantities and sell-through rates.
+
+## 9. Conclusion
+
+The revised dashboard goes beyond describing which categories are largest. It tests whether the composition of MotorPH's product lineup is aligned with customer demand. By calculating the gap between product-lineup share and sales-unit share, I can identify categories that may be overrepresented and categories where demand may justify more attention.
 """
 
     ANALYSIS_FILE.write_text(report, encoding="utf-8")
+
+
+def write_readme():
+    """Create a short reproducibility guide for another person running the project."""
+    readme = """# MotorPH Milestone 2 - How to Run
+
+## Required files
+
+Place the following files in the same folder:
+
+1. `MotorPH_MS2_Final_Dashboard_REVISED.py`
+2. The cleaned MotorPH Products CSV from Milestone 1.
+3. The MotorPH Sales CSV.
+
+The script recognizes these common filenames for the Products file:
+- `MotorPH_Products_Preprocessed  - Sheet1.csv`
+- `MotorPH_Products_Preprocessed - Sheet1.csv`
+- `MotorPH_Products_Preprocessed.csv`
+
+The script recognizes these common filenames for the Sales file:
+- `MotorPH_Sales Data-3rd Quarter-Year 2025.csv`
+- `MotorPH_Sales_Preprocessed - Sheet1.csv`
+- `MotorPH_Sales_Preprocessed.csv`
+
+## Python requirements
+
+Install:
+
+```bash
+pip install pandas matplotlib
+```
+
+## Run
+
+Open a terminal in the project folder and run:
+
+```bash
+python MotorPH_MS2_Final_Dashboard_REVISED.py
+```
+
+## Files created
+
+- `MotorPH_Analytical_Dashboard.png`
+- `MotorPH_Inventory_Section.png`
+- `MotorPH_Analytical_Dashboard.pdf`
+- `MotorPH_Sales_MS2_Cleaned.csv`
+- `MotorPH_MS2_Analysis.md`
+- `MotorPH_MS2_README.md`
+
+## Main analytical test
+
+The revised dashboard compares each category's product-lineup share with its share of total units sold.
+
+- Positive gap = overrepresented in the product lineup relative to demand.
+- Negative gap = sales demand exceeds product-lineup representation.
+
+This comparison is an assortment/inventory-risk proxy because the Products dataset does not include actual on-hand stock quantity by category.
+"""
+    README_FILE.write_text(readme, encoding="utf-8")
 
 
 def print_quality_report(quality):
@@ -925,6 +1090,7 @@ def main():
         pdf.savefig(inventory_fig, bbox_inches="tight")
 
     write_analysis(products, sales, metrics, quality)
+    write_readme()
 
     plt.close(dashboard_fig)
     plt.close(inventory_fig)
@@ -936,6 +1102,7 @@ def main():
     print(DASHBOARD_PDF.name)
     print(CLEAN_SALES_FILE.name)
     print(ANALYSIS_FILE.name)
+    print(README_FILE.name)
     print("\nMilestone 2 dashboard generation complete.")
 
 
