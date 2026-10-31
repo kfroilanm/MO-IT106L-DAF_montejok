@@ -1,0 +1,7 @@
+Question,Test,Statistic,p_value,Decision
+Q1 July product sales normality,Shapiro-Wilk,0.9627548669656746,0.11596111589093894,Fail to reject H0
+Q2 July retail sales > June,"Mann-Whitney U (one-tailed, greater)",352.0,0.9492243284366663,Fail to reject H0
+Q2 robustness: July retail differs from June,Mann-Whitney U (two-tailed),352.0,0.10459954557197432,Fail to reject H0
+Q3 August product sales normality,Shapiro-Wilk,0.96494162472964,0.14312519367885784,Fail to reject H0
+Q4 August units > previous months,"Mann-Whitney U (one-tailed, greater)",792.0,0.8983431366785026,Fail to reject H0
+Q4 robustness: August differs from previous months,Mann-Whitney U (two-tailed),792.0,0.20626364153311105,Fail to reject H0
